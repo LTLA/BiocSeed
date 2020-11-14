@@ -1,7 +1,6 @@
 holding <- new.env()
-holding$seed <- NULL
-holding$active <- TRUE 
-holding$nest <- 0L
+holding$active <- FALSE
+holding$enabled <- TRUE
 
 #' Smart seed setter
 #'
@@ -10,16 +9,18 @@ holding$nest <- 0L
 #' This reduces the pressure on the user to ensure that the seed is properly set.
 #'
 #' @param x Any R object that can be coerced into a character vector.
+#' @param info Output of \code{setBiocSeed}.
 #'
 #' @return 
 #' \code{setBiocSeed} will set the global seed to some deterministically chosen value based on \code{x}.
+#' It invisibly returns the old value of \code{\link{.Random.seed}}.
 #'
 #' \code{unsetBiocSeed} will restore the global seed to what it was before calling \code{setBiocSeed}.
+#' It will also return \code{NULL} invisibly.
 #'
 #' \code{disableBiocSeed} will cause all \code{setBiocSeed} and \code{unsetBiocSeed} to be no-ops.
 #' This is reversed by \code{enableBiocSeed}.
-#'
-#' All functions return \code{NULL} invisibly.
+#' Both functions return \code{NULL} invisibly.
 #'
 #' @details
 #' In some situations, an algorithm is theoretically deterministic but the implementation has a stochastic component, e.g., for initialization.
@@ -48,46 +49,60 @@ holding$nest <- 0L
 #' @author Aaron Lun 
 #'
 #' @examples
-#' setBiocSeed(letters)
+#' info <- setBiocSeed(letters)
 #' runif(5)
-#' unsetBiocSeed()
+#' unsetBiocSeed(info)
 #' 
 #' # Same as above.
-#' setBiocSeed(letters)
+#' info <- setBiocSeed(letters)
 #' runif(5)
-#' unsetBiocSeed()
+#' unsetBiocSeed(info)
 #'
 #' # Different, but deterministically so.
-#' setBiocSeed(LETTERS)
+#' info <- setBiocSeed(LETTERS)
 #' runif(5)
-#' unsetBiocSeed()
+#' unsetBiocSeed(info)
 #'
 #' # Does not affect the RNG outside of the set/unset pair.
-#' setBiocSeed(LETTERS)
+#' info <- setBiocSeed(LETTERS)
 #' X <- runif(5)
-#' unsetBiocSeed()
+#' unsetBiocSeed(info)
 #' runif(1)
 #'
-#' setBiocSeed(LETTERS)
+#' info <- setBiocSeed(LETTERS)
 #' X <- runif(5)
-#' unsetBiocSeed()
+#' unsetBiocSeed(info)
 #' runif(1)
+#'
+#' # Typical usage in a function:
+#' FUN <- function(x) {
+#'     info <- setBiocSeed(head(x))
+#'     on.exit(unsetBiocSeed(info))
+#'     sample(x)
+#' }
+#' 
+#' FUN(1:10)
+#' FUN(1:10)
+#'
 #' @export
 setBiocSeed <- function(x) {
-    holding$nest <- holding$nest + 1L
+    old.seed <- NULL
 
-    if (holding$nest == 1L && holding$active) {
+    if (holding$enabled && !holding$active) {
+        holding$active <- TRUE
+
         if (exists(".Random.seed", envir=.GlobalEnv)) {  
-            holding$seed <- get(".Random.seed", envir=.GlobalEnv)
+            old.seed <- get(".Random.seed", envir=.GlobalEnv)
         } else {
-            holding$seed <- NA
+            old.seed <- NA
         }
 
         x <- as.character(x)
         alt <- .hash(x)
         set.seed(alt)
     }
-    invisible(NULL)
+
+    invisible(old.seed)
 }
 
 #' @useDynLib BiocSeed, .registration=TRUE
@@ -95,17 +110,14 @@ setBiocSeed <- function(x) {
 
 #' @export
 #' @rdname setBiocSeed
-unsetBiocSeed <- function() {
-    holding$nest <- max(0L, holding$nest - 1L)
+unsetBiocSeed <- function(info) {
+    if (holding$enabled && !is.null(info)) {
+        holding$active <- FALSE
 
-    if (holding$nest == 0L && holding$active) {
-        if (!is.null(holding$seed)) {
-            if (!identical(holding$seed, NA)) {
-                assign(".Random.seed", value=holding$seed, envir=.GlobalEnv)
-                holding$seed <- NULL
-            } else {
-                rm(".Random.seed", envir=.GlobalEnv)
-            }
+        if (!identical(info, NA)) {
+            assign(".Random.seed", value=info, envir=.GlobalEnv)
+        } else {
+            rm(".Random.seed", envir=.GlobalEnv)
         }
     }
     invisible(NULL)
@@ -114,13 +126,13 @@ unsetBiocSeed <- function() {
 #' @export
 #' @rdname setBiocSeed
 enableBiocSeed <- function() {
-    holding$active <- TRUE
+    holding$enabled <- TRUE
     invisible(NULL)
 }
 
 #' @export
 #' @rdname setBiocSeed
 disableBiocSeed <- function() {
-    holding$active <- FALSE
+    holding$enabled <- FALSE
     invisible(NULL)
 }

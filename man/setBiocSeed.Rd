@@ -9,7 +9,7 @@
 \usage{
 setBiocSeed(x)
 
-unsetBiocSeed()
+unsetBiocSeed(info)
 
 enableBiocSeed()
 
@@ -17,16 +17,19 @@ disableBiocSeed()
 }
 \arguments{
 \item{x}{Any R object that can be coerced into a character vector.}
+
+\item{info}{Output of \code{setBiocSeed}.}
 }
 \value{
 \code{setBiocSeed} will set the global seed to some deterministically chosen value based on \code{x}.
+It invisibly returns the old value of \code{\link{.Random.seed}}.
 
 \code{unsetBiocSeed} will restore the global seed to what it was before calling \code{setBiocSeed}.
+It will also return \code{NULL} invisibly.
 
 \code{disableBiocSeed} will cause all \code{setBiocSeed} and \code{unsetBiocSeed} to be no-ops.
 This is reversed by \code{enableBiocSeed}.
-
-All functions return \code{NULL} invisibly.
+Both functions return \code{NULL} invisibly.
 }
 \description{
 Set the seed in a \dQuote{deterministically variable} manner,
@@ -58,30 +61,41 @@ Finally, the entire system can be turned on or with \code{disableBiocSeed} and \
 This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to control the process via the global \code{\link{set.seed}}.
 }
 \examples{
-setBiocSeed(letters)
+info <- setBiocSeed(letters)
 runif(5)
-unsetBiocSeed()
+unsetBiocSeed(info)
 
 # Same as above.
-setBiocSeed(letters)
+info <- setBiocSeed(letters)
 runif(5)
-unsetBiocSeed()
+unsetBiocSeed(info)
 
 # Different, but deterministically so.
-setBiocSeed(LETTERS)
+info <- setBiocSeed(LETTERS)
 runif(5)
-unsetBiocSeed()
+unsetBiocSeed(info)
 
 # Does not affect the RNG outside of the set/unset pair.
-setBiocSeed(LETTERS)
+info <- setBiocSeed(LETTERS)
 X <- runif(5)
-unsetBiocSeed()
+unsetBiocSeed(info)
 runif(1)
 
-setBiocSeed(LETTERS)
+info <- setBiocSeed(LETTERS)
 X <- runif(5)
-unsetBiocSeed()
+unsetBiocSeed(info)
 runif(1)
+
+# Typical usage in a function:
+FUN <- function(x) {
+    info <- setBiocSeed(head(x))
+    on.exit(unsetBiocSeed(info))
+    sample(x)
+}
+
+FUN(1:10)
+FUN(1:10)
+
 }
 \author{
 Aaron Lun
