@@ -1,47 +1,62 @@
 #include "Rdefines.h"
 #include <R_ext/Rdynload.h>
 #include <limits>
+#include <cstdint>
 
-/* Modified from http://www.cse.yorku.ca/~oz/hash.html */ 
+/* We'll assume int is at least 32 bits here. We convert from unsigned to
+ * signed by reversing the overflow logic.
+ */
 
-typedef unsigned int T;
+typedef std::int32_t S;
+typedef std::uint32_t U;
 
-SEXP djb2(SEXP incoming) {
-    const unsigned char* ptr = RAW(incoming);
-    const auto len = length(incoming);
-    const unsigned char* end = ptr + len;
+int convert_to_int (U hash) { 
+    constexpr U intmax = std::numeric_limits<S>::max();
 
-    T hash = 5381;
-    while (ptr != end) {
-        hash = ((hash << 5) + hash) + *ptr; 
-        ++ptr;
-    }
-
-    // Whittling it down.
-    int output;
-    constexpr T upper = (static_cast<T>(1) << (std::numeric_limits<T>::digits - 1)); // 1 bit for the sign.
-
-    if (hash < upper) {
-        output = hash;
+    S output;
+    if (hash <= intmax) {
+        output = static_cast<S>(hash);
     } else {
-        output = (hash - upper);
-        if (output == 0) { // this is an NA_integer_, for which set.seed() fails; so we just set it to zero.
+        hash -= intmax + 1;
+        if (hash==0) { // as this is the NA value.
             output = 0;
         } else {
-            // Two rounds, to avoid implicit case of upper to 'int'.
-            constexpr int half = upper/2;
-            output -= half;
-            output -= half;
+            output = static_cast<S>(hash);
+            output -= static_cast<S>(intmax);
+            output -= 1;
         }
     }
 
-    return ScalarInteger(output);
+    return output;
+}
+
+SEXP check_conversion(SEXP incoming) {
+    return ScalarInteger(convert_to_int(static_cast<U>(*(REAL(incoming)))));
+}
+
+/* Modified from http://www.cse.yorku.ca/~oz/hash.html */ 
+
+SEXP djb2(SEXP incoming) {
+    const size_t len = length(incoming);
+
+    U hash = 5381;
+    for (size_t i = 0; i < len; ++i) {
+        SEXP current = STRING_ELT(incoming, i);
+        const char* ptr = CHAR(current);
+        while (*ptr != '\0') {
+            hash = ((hash << 5) + hash) + *ptr; 
+            ++ptr;
+        }
+    }
+
+    return ScalarInteger(convert_to_int(hash));
 }
 
 extern "C" {
 
 static const R_CallMethodDef callMethods[]  = {
     {"djb2", (DL_FUNC) &djb2, 1},
+    {"check_conversion", (DL_FUNC) &check_conversion, 1},
     {NULL, NULL, 0}
 };
 

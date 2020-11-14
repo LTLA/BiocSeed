@@ -8,7 +8,7 @@ holding$active <- TRUE
 #' typically for use within functions that have some stochastic component.
 #' This reduces the pressure on the user to ensure that the seed is properly set.
 #'
-#' @param x Any R object, typically a slice of the dataset being operated on.
+#' @param x Any R object that can be coerced into a character vector.
 #'
 #' @return 
 #' \code{setBiocSeed} will set the global seed to some deterministically chosen value based on \code{x}.
@@ -26,8 +26,8 @@ holding$active <- TRUE
 #' This is the purpose of \code{setBiocSeed}, which implements a number of tricks to play nice with the global seed.
 #'
 #' Firstly, the choice of seed is based on \code{x}, usually a chunk of the dataset of interest. 
-#' Specifically, we serialize \code{x} and hash the resulting raw vector to obtain an integer to use as the seed. 
-#' This process yields a deterministic choice that is also variable with different \code{x}.
+#' Specifically, we convert \code{x} to a character vector and hash it to obtain an integer to use as the seed. 
+#' This process yields a deterministic seed for reproducible results, which is also variable with different \code{x}.
 #' It ensures that we do not always pick the same seed in all situations,
 #' which could lead to problems, e.g., due to biases or from a poor choice of initializations.
 #' 
@@ -77,9 +77,8 @@ setBiocSeed <- function(x) {
         if (exists(".Random.seed", envir=.GlobalEnv)) {  
             holding$seed <- get(".Random.seed", envir=.GlobalEnv)
         }
-
-        vals <- serialize(x, NULL)
-        alt <- .hash(vals)
+        x <- as.character(x)
+        alt <- .hash(x)
         set.seed(alt)
     }
     invisible(NULL)
