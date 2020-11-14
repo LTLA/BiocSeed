@@ -1,0 +1,19 @@
+Package: BiocSeed
+Version: 0.99.0
+Date: 2020-11-13
+Description: 
+    Implements an intelligent seed-setting mechanism for use with algorithms
+    that are practically stochastic but theoretically deterministic. The aim
+    is to ensure that functions can return deterministic output without the
+    user having to remember to set the seed explicitly; yet avoid using a 
+    constant seed that might lock a function into a bad initialization; and
+    to also avoid interfering with any set.seed() calls that are provided.
+Authors@R:
+    person("Aaron", "Lun", role=c("aut", "cre"), email="infinite.monkeys.with.keyboards@gmail.com")
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat,
+    BiocStyle
+VignetteBuilder: knitr
+RoxygenNote: 7.1.1
