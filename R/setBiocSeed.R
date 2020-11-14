@@ -1,6 +1,7 @@
 holding <- new.env()
 holding$seed <- NULL
 holding$active <- TRUE 
+holding$nest <- 0L
 
 #' Smart seed setter
 #'
@@ -73,10 +74,15 @@ holding$active <- TRUE
 #' runif(1)
 #' @export
 setBiocSeed <- function(x) {
-    if (is.null(holding$seed) && holding$active) {
+    holding$nest <- holding$nest + 1L
+
+    if (holding$nest == 1L && holding$active) {
         if (exists(".Random.seed", envir=.GlobalEnv)) {  
             holding$seed <- get(".Random.seed", envir=.GlobalEnv)
+        } else {
+            holding$seed <- NA
         }
+
         x <- as.character(x)
         alt <- .hash(x)
         set.seed(alt)
@@ -90,12 +96,16 @@ setBiocSeed <- function(x) {
 #' @export
 #' @rdname setBiocSeed
 unsetBiocSeed <- function() {
-    if (holding$active) {
+    holding$nest <- max(0L, holding$nest - 1L)
+
+    if (holding$nest == 0L && holding$active) {
         if (!is.null(holding$seed)) {
-            assign(".Random.seed", value=holding$seed, envir=.GlobalEnv)
-            holding$seed <- NULL
-        } else {
-            rm(".Random.seed", envir=.GlobalEnv)
+            if (!identical(holding$seed, NA)) {
+                assign(".Random.seed", value=holding$seed, envir=.GlobalEnv)
+                holding$seed <- NULL
+            } else {
+                rm(".Random.seed", envir=.GlobalEnv)
+            }
         }
     }
     invisible(NULL)
