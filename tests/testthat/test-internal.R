@@ -49,4 +49,17 @@ test_that("double splitting to integers works as expected", {
     expect_true(all(abs(X[,1]) < 1e8))
     recon <- X[,1] / 1e7 * 10^X[,2]
     expect_true(all(abs(1 - recon/out) < 1e-7))
+
+    # Actually works on a hard-coded value.
+    X <- BiocSeed:::.real2int(1.0001, digits=5)
+    expect_identical(X[1,], c(10001L, 0L))
+
+    X <- BiocSeed:::.real2int(1.001, digits=4)
+    expect_identical(X[1,], c(1001L, 0L))
+
+    X <- BiocSeed:::.real2int(1.001e-1, digits=4)
+    expect_identical(X[1,], c(1001L, -1L))
+
+    X <- BiocSeed:::.real2int(1.001e2, digits=4)
+    expect_identical(X[1,], c(1001L, 2L))
 })

@@ -7,7 +7,7 @@
 \alias{disableBiocSeed}
 \title{Smart seed setter}
 \usage{
-setBiocSeed(x, digits = 6)
+setBiocSeed(x, digits = 4)
 
 unsetBiocSeed(info)
 
@@ -61,7 +61,9 @@ These differences would result in \code{setBiocSeed} generating a machine-depend
 
 To overcome this, we round all doubles to the first \code{digits} significant figures, 
 thus ignoring any machine-dependent differences in the least significant bits.
-We then convert each double into two integers for the base-10 exponent and mantissa in preparation for hashing.
+We then convert each double into two integers (for the base-10 exponent and the significand) in preparation for hashing.
+Due to the constraints on the integer width, \code{digits} should be a value between 1 and 8 inclusive.
+
 For complex numbers, the same treatment is applied to the real and imaginary parts separately.
 }
 

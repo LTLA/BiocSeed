@@ -45,7 +45,9 @@ holding$enabled <- TRUE
 #'
 #' To overcome this, we round all doubles to the first \code{digits} significant figures, 
 #' thus ignoring any machine-dependent differences in the least significant bits.
-#' We then convert each double into two integers for the base-10 exponent and mantissa in preparation for hashing.
+#' We then convert each double into two integers (for the base-10 exponent and the significand) in preparation for hashing.
+#' Due to the constraints on the integer width, \code{digits} should be a value between 1 and 8 inclusive.
+#' 
 #' For complex numbers, the same treatment is applied to the real and imaginary parts separately.
 #' 
 #' @author Aaron Lun 
@@ -87,7 +89,7 @@ holding$enabled <- TRUE
 #' FUN(1:10)
 #'
 #' @export
-setBiocSeed <- function(x, digits=6) {
+setBiocSeed <- function(x, digits=4) {
     old.seed <- NULL
 
     if (holding$enabled && !holding$active) {
@@ -128,7 +130,7 @@ setBiocSeed <- function(x, digits=6) {
 {
     expo <- floor(log10(abs(x)))
     expo[!is.finite(expo)] <- 0
-    mant <- x / 10^(expo - digits + 1)
+    mant <- round(x / 10^(expo - digits + 1))
     cbind(as.integer(mant), as.integer(expo))
 }
 
