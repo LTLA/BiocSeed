@@ -73,7 +73,22 @@ out <- my_somewhat_random_task(letters)
 runif(1) # same result as before
 ```
 
-We suggest wrapping `unsetBiocSeed()` in an `on.exit()` statement to ensure that the global seed is restored upon error.
+This is also helpful in applications involving simulations, e.g., Monte Carlo sampling.
+Failing to restore the global seed would cause all iterations to be identical if the seed is always reset to some constant value.
+
+```{r}
+set.seed(1000)
+
+collected <- numeric(10)
+for (i in seq_along(collected)) {
+    out <- my_somewhat_random_task(letters)
+    collected[i] <- runif(1)
+}
+
+collected # all values are different
+```
+
+We suggest wrapping `unsetBiocSeed()` in an `on.exit()` statement to ensure that the global seed is restored upon both function return or error.
 
 # Nested calls 
 
@@ -98,8 +113,8 @@ OUTER(1:10)
 
 Note that the `setBiocSeed()` invocation in `INNER()` has no effect once the same call is made in `OUTER()`.
 In a nested stack of `setBiocSeed()` calls, the seed is only set once on the first call.
-This is intentional and allows the PRNG to progress through the random number stream,
-avoiding any biases from limiting the stream to the sequence around the $2^{32}-1$ seed locations.
+This is intentional and allows the PRNG to progress further through the random number stream,
+avoiding any biases from being limited to the sequence around the $2^{32}-1$ seed locations.
 
 # Turning it all off
 
