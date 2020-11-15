@@ -36,7 +36,7 @@ SEXP check_conversion(SEXP incoming) {
 
 /* Modified from http://www.cse.yorku.ca/~oz/hash.html */ 
 
-SEXP djb2(SEXP incoming) {
+SEXP djb2_char(SEXP incoming) {
     const size_t len = length(incoming);
 
     U hash = 5381;
@@ -52,10 +52,27 @@ SEXP djb2(SEXP incoming) {
     return ScalarInteger(convert_to_int(hash));
 }
 
+SEXP djb2_int(SEXP incoming) {
+    const int * ptr = INTEGER(incoming);
+    const size_t len = length(incoming);
+    constexpr int width = std::numeric_limits<U>::digits;
+
+    U hash = 5381;
+    for (size_t i = 0; i < len; ++i) {
+        U current = ptr[i];
+        for (int j = 0; j < width; j+=8, current >>= 8) {
+            hash = ((hash << 5) + hash) + (current & 0xFF);
+        }
+    }
+
+    return ScalarInteger(convert_to_int(hash));
+}
+
 extern "C" {
 
 static const R_CallMethodDef callMethods[]  = {
-    {"djb2", (DL_FUNC) &djb2, 1},
+    {"djb2_int", (DL_FUNC) &djb2_int, 1},
+    {"djb2_char", (DL_FUNC) &djb2_char, 1},
     {"check_conversion", (DL_FUNC) &check_conversion, 1},
     {NULL, NULL, 0}
 };

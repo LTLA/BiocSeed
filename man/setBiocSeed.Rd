@@ -7,7 +7,7 @@
 \alias{disableBiocSeed}
 \title{Smart seed setter}
 \usage{
-setBiocSeed(x)
+setBiocSeed(x, digits = 6)
 
 unsetBiocSeed(info)
 
@@ -16,7 +16,7 @@ enableBiocSeed()
 disableBiocSeed()
 }
 \arguments{
-\item{x}{Any R object that can be coerced into a character vector.}
+\item{x}{An R object of an atomic type, e.g., an integer or character vector.}
 
 \item{info}{Output of \code{setBiocSeed}.}
 }
@@ -38,7 +38,7 @@ This reduces the pressure on the user to ensure that the seed is properly set.
 }
 \details{
 The choice of seed is based on \code{x}, usually a chunk of the dataset of interest. 
-Specifically, we convert \code{x} to a character vector and hash it to obtain an integer to use as the seed. 
+Specifically, we convert \code{x} to an integer or character vector, and hash it to obtain an integer to use as the seed. 
 This process yields a deterministic seed for reproducible results, which is also variable with different \code{x}.
 
 Secondly, the original seed in \code{\link{.Random.seed}} is restored upon calling \code{\link{unsetBiocSeed}}.
@@ -51,6 +51,18 @@ This means that the PRNG has an opportunity to progress further through the rand
 Finally, the entire system can be turned on or with \code{disableBiocSeed} and \code{enableBiocSeed}.
 This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to control the process via the global \code{\link{set.seed}}.
 }
+\section{Dealing with floating-point}{
+
+When \code{x} is double-precision, some care is required as different machines may not perform computations with the same precision.
+While \code{x} might be \emph{theoretically} identical across machines, it may differ in practice in some of the less significant bits. 
+These differences would result in \code{setBiocSeed} generating a machine-dependent seed, which is not desirable.
+
+To overcome this, we round all doubles to the first \code{digits} significant figures, 
+thus ignoring any machine-dependent differences in the least significant bits.
+We then convert each double into two integers for the base-10 exponent and mantissa in preparation for hashing.
+For complex numbers, the same treatment is applied to the real and imaginary parts separately.
+}
+
 \examples{
 info <- setBiocSeed(letters)
 runif(5)
