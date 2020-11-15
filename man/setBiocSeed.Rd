@@ -7,7 +7,7 @@
 \alias{disableBiocSeed}
 \title{Smart seed setter}
 \usage{
-setBiocSeed(x, digits = 4)
+setBiocSeed(x, digits = 4, seed = NULL)
 
 unsetBiocSeed(info)
 
@@ -19,6 +19,8 @@ disableBiocSeed()
 \item{x}{An R object of an atomic type, e.g., an integer or character vector.}
 
 \item{digits}{Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.}
+
+\item{seed}{An optional integer scalar specifying the actual seed to use.}
 
 \item{info}{Output of \code{setBiocSeed}.}
 }
@@ -50,8 +52,12 @@ Thirdly, repeated invocations of \code{setBiocSeed} have no effect beyond the fi
 If we have a function that calls other functions that call \code{setBiocSeed}, it can be a good idea to call \code{setBiocSeed} explicitly at the start of the outer function.
 This means that the PRNG has an opportunity to progress further through the random number stream.
 
+Fourthly, the user can explicitly pass in a non-\code{NULL} value for \code{seed}, which is used directly rather than deriving the seed from \code{x}.
+This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to test out the effects of different seeds.
+Note that this, again, has no effect in nested calls beyond the first.
+
 Finally, the entire system can be turned on or with \code{disableBiocSeed} and \code{enableBiocSeed}.
-This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to control the process via the global \code{\link{set.seed}}.
+This is useful for backcompatibility where users can control the process via the global \code{\link{set.seed}}.
 }
 \section{Dealing with floating-point}{
 

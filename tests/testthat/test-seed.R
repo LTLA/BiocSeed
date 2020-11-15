@@ -102,3 +102,14 @@ test_that("setBiocSeed responds to disabling", {
     unsetBiocSeed(info)
     expect_identical(Y, Z2)
 })
+
+test_that("setBiocSeed responds to seed= specification", {
+    set.seed(100)
+    X <- runif(10)
+
+    info <- setBiocSeed(1:100, seed=100)
+    Y <- runif(10)
+    unsetBiocSeed(info)
+
+    expect_identical(X, Y)
+})

@@ -135,6 +135,20 @@ my_somewhat_random_task(letters)
 my_somewhat_random_task(letters)
 ```
 
+Alternatively, developers may wish to pass along `seed=` argument to `setBiocSeed()`.
+With `seed=NULL`, this will derive a seed from the input arguments, otherwise it will conveniently enable the user to set their own seed.
+This mode may be useful if the seed derived from `x` is somehow inappropriate, or for testing out the effect of stochasticity on the function outputs.
+
+```{r}
+FUN <- function(x, seed=NULL) {
+    info <- setBiocSeed(head(x), seed=seed)
+    on.exit(unsetBiocSeed(info))
+    sample(x)
+}
+
+FUN(1:10)
+```
+
 # Session information {-}
 
 ```{r}

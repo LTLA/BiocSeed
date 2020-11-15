@@ -10,6 +10,7 @@ holding$enabled <- TRUE
 #'
 #' @param x An R object of an atomic type, e.g., an integer or character vector.
 #' @param digits Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.
+#' @param seed An optional integer scalar specifying the actual seed to use.
 #' @param info Output of \code{setBiocSeed}.
 #'
 #' @return 
@@ -35,8 +36,12 @@ holding$enabled <- TRUE
 #' If we have a function that calls other functions that call \code{setBiocSeed}, it can be a good idea to call \code{setBiocSeed} explicitly at the start of the outer function.
 #' This means that the PRNG has an opportunity to progress further through the random number stream.
 #'
+#' Fourthly, the user can explicitly pass in a non-\code{NULL} value for \code{seed}, which is used directly rather than deriving the seed from \code{x}.
+#' This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to test out the effects of different seeds.
+#' Note that this, again, has no effect in nested calls beyond the first.
+#'
 #' Finally, the entire system can be turned on or with \code{disableBiocSeed} and \code{enableBiocSeed}.
-#' This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to control the process via the global \code{\link{set.seed}}.
+#' This is useful for backcompatibility where users can control the process via the global \code{\link{set.seed}}.
 #'
 #' @section Dealing with floating-point:
 #' When \code{x} is double-precision, some care is required as different machines may not perform computations with the same precision.
@@ -89,7 +94,7 @@ holding$enabled <- TRUE
 #' FUN(1:10)
 #'
 #' @export
-setBiocSeed <- function(x, digits=4) {
+setBiocSeed <- function(x, digits=4, seed=NULL) {
     old.seed <- NULL
 
     if (holding$enabled && !holding$active) {
@@ -101,23 +106,27 @@ setBiocSeed <- function(x, digits=4) {
             old.seed <- NA
         }
 
-        if (is.character(x)) {
-            alt <- .hash_char(x)
-        } else {
-            if (is.double(x)) {
-                x <- .real2int(x, digits=digits)
-            } else if (is.complex(x)) {
-                x <- cbind(
-                    .real2int(Re(x), digits=digits),
-                    .real2int(Im(x), digits=digits)
-                )
-            } else if (!is.atomic(x)) {
-                stop("'x' must be an atomic type")
+        if (is.null(seed)) {
+            if (is.character(x)) {
+                seed <- .hash_char(x)
+            } else {
+                if (is.double(x)) {
+                    x <- .real2int(x, digits=digits)
+                } else if (is.complex(x)) {
+                    x <- cbind(
+                        .real2int(Re(x), digits=digits),
+                        .real2int(Im(x), digits=digits)
+                    )
+                } else if (!is.atomic(x)) {
+                    stop("'x' must be an atomic type")
+                } else {
+                    x <- as.integer(x)
+                }
+                seed <- .hash_int(x)
             }
-            alt <- .hash_int(x)
         }
 
-        set.seed(alt)
+        set.seed(seed)
     }
 
     invisible(old.seed)
