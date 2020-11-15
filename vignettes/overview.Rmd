@@ -1,0 +1,127 @@
+---
+title: Setting the random seed in Bioconductor packages
+author: 
+- name: Aaron Lun
+  email: infinite.monkeys.with.keyboards@gmail.com
+package: BiocSeed
+output:
+  BiocStyle::html_document:
+    toc_float: yes
+vignette: >
+  %\VignetteIndexEntry{BioC'ing the seed}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}    
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error=FALSE, message=FALSE, warning=FALSE)
+library(BiocStyle)
+```
+
+# Overview
+
+In some situations, an algorithm is theoretically deterministic but the implementation has a stochastic component, e.g., for initialization.
+It would be helpful if we could abstract away the stochastic component so that users do not have to manually call `set.seed()` to obtain reproducible results.
+To this end, `r Biocpkg("BiocSeed")` provides the `setBiocSeed()` function to set the seed to a "deterministically variable" value within Bioconductor packages.
+
+The central idea is that the seed is itself a function of the data.
+This ensures that the same call on the same data will reproducibly yield the same result, while different calls will use different seeds.
+In this manner, we avoid using the same seed in all situations, which could lead to problems due to, e.g., statistical biases or poor initializations.
+
+# Basic usage
+
+`r Biocpkg("BiocSeed")` is intended for package developers who are writing functions with some stochastic component.
+It can be used by passing some relevant slice of the function's data to `setBiocSeed()` as shown below.
+
+```{r}
+library(BiocSeed)
+my_somewhat_random_task <- function(x) {
+    info <- setBiocSeed(head(x))
+    on.exit(unsetBiocSeed(info))
+
+    # Do somewhat random things here.
+    sample(x)
+}
+```
+
+This ensures that identical calls on the same data yield the same results:
+
+```{r}
+my_somewhat_random_task(letters)
+my_somewhat_random_task(letters)
+```
+
+If we change the input data, we get different (but still reproducible) results:
+
+```{r}
+my_somewhat_random_task(LETTERS)
+my_somewhat_random_task(LETTERS)
+```
+
+# Respecting the global seed
+
+`unsetBiocSeed()` will restore the global seed to its previous state when the function exits.
+This behavior avoids surprising changes to the user-level results when functions silently advance the random number stream. 
+For example, end-users can expect to do things like:
+
+```{r}
+set.seed(1000)
+runif(1)
+
+set.seed(1000)
+out <- my_somewhat_random_task(letters)
+runif(1) # same result as before
+```
+
+We suggest wrapping `unsetBiocSeed()` in an `on.exit()` statement to ensure that the global seed is restored upon error.
+
+# Nested calls 
+
+Developers are free to nest these calls, provided that `unsetBiocSeed()` is always called at each level.
+
+```{r}
+OUTER <- function(x) {
+    info <- setBiocSeed(head(x))
+    on.exit(unsetBiocSeed(info))
+
+    INNER(x)
+}
+
+INNER <- function(x) {
+    info <- setBiocSeed(head(x))
+    on.exit(unsetBiocSeed(info))
+    sample(x)
+}
+
+OUTER(1:10)
+```
+
+Note that the `setBiocSeed()` invocation in `INNER()` has no effect once the same call is made in `OUTER()`.
+In a nested stack of `setBiocSeed()` calls, the seed is only set once on the first call.
+This is intentional and allows the PRNG to progress through the random number stream,
+avoiding any biases from limiting the stream to the sequence around the $2^{32}-1$ seed locations.
+
+# Turning it all off
+
+If users want to respond to the global seed only, the `r Biocpkg("BiocSeed")` system can be disabled with `disableBiocSeed()`.
+
+```{r}
+set.seed(10)
+disableBiocSeed()
+my_somewhat_random_task(letters)
+my_somewhat_random_task(letters)
+```
+
+It is also straightforward to re-enable it:
+
+```{r}
+enableBiocSeed()
+my_somewhat_random_task(letters)
+my_somewhat_random_task(letters)
+```
+
+# Session information {-}
+
+```{r}
+sessionInfo()
+```
