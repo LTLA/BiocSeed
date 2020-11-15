@@ -18,6 +18,8 @@ disableBiocSeed()
 \arguments{
 \item{x}{An R object of an atomic type, e.g., an integer or character vector.}
 
+\item{digits}{Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.}
+
 \item{info}{Output of \code{setBiocSeed}.}
 }
 \value{

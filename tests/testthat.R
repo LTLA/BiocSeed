@@ -1,3 +1,3 @@
 library(BiocSeed)
 library(testthat)
-test_checl("testthat.R")
+test_check("BiocSeed")

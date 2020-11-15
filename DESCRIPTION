@@ -1,6 +1,8 @@
 Package: BiocSeed
 Version: 0.99.0
 Date: 2020-11-13
+Title: Setting the Random Seed in Bioconductor Packages
+License: MIT 
 Description: 
     Implements an intelligent seed-setting mechanism for use with algorithms
     that are practically stochastic but theoretically deterministic. The aim

@@ -9,6 +9,7 @@ holding$enabled <- TRUE
 #' This reduces the pressure on the user to ensure that the seed is properly set.
 #'
 #' @param x An R object of an atomic type, e.g., an integer or character vector.
+#' @param digits Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.
 #' @param info Output of \code{setBiocSeed}.
 #'
 #' @return 
