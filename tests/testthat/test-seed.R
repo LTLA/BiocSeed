@@ -50,34 +50,6 @@ test_that("setBiocSeed does not affect the global RNG", {
     expect_identical(X, Y)
 })
 
-test_that("setBiocSeed works in nested contexts", {
-    info <- setBiocSeed(1:100)
-    X <- runif(10)
-    expect_true(BiocSeed:::holding$active)
-    unsetBiocSeed(info)
-    expect_false(BiocSeed:::holding$active)
-
-    info <- setBiocSeed(1:100)
-    info2 <- setBiocSeed(letters)
-
-    Y <- runif(10)
-    expect_true(BiocSeed:::holding$active)
-    expect_identical(X, Y)
-
-    unsetBiocSeed(info2)
-    unsetBiocSeed(info)
-    expect_false(BiocSeed:::holding$active)
-
-    info <- setBiocSeed(1:100)
-    info2 <- setBiocSeed(letters)
-    info3 <- setBiocSeed(rbinom(5, 1, 0.5)==1)
-    Z <- runif(10)
-    unsetBiocSeed(info3)
-    unsetBiocSeed(info2)
-    unsetBiocSeed(info)
-    expect_identical(X, Z)
-})
-
 test_that("setBiocSeed responds to disabling", {
     set.seed(100)
     X <- runif(10)

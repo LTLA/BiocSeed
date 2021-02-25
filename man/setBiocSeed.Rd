@@ -7,22 +7,22 @@
 \alias{disableBiocSeed}
 \title{Smart seed setter}
 \usage{
-setBiocSeed(x, digits = 4, seed = NULL)
+setBiocSeed(x, seed = NULL)
 
-unsetBiocSeed(info)
+unsetBiocSeed(previous)
 
 enableBiocSeed()
 
 disableBiocSeed()
 }
 \arguments{
-\item{x}{An R object of an atomic type, e.g., an integer or character vector.}
-
-\item{digits}{Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.}
+\item{x}{An integer or character vector, or a list containing any number of such vectors.}
 
 \item{seed}{An optional integer scalar specifying the actual seed to use.}
 
-\item{info}{Output of \code{setBiocSeed}.}
+\item{previous}{An integer vector corresponding to the previous seed or \code{NA}, typically returned by \code{setBiocSeed}.}
+
+\item{digits}{Integer scalar specifying the number of significant digits to retain for double or complex \code{x}.}
 }
 \value{
 \code{setBiocSeed} will set the global seed to some deterministically chosen value based on \code{x}.
@@ -38,41 +38,24 @@ Both functions return \code{NULL} invisibly.
 \description{
 Set the seed in a \dQuote{deterministically variable} manner,
 typically for use within functions that have some stochastic component.
-This reduces the pressure on the user to ensure that the seed is properly set.
+This aims to provide a compromise between convenient reproducibility and statistical rigor.
 }
 \details{
-The choice of seed is based on \code{x}, usually a chunk of the dataset of interest. 
-Specifically, we convert \code{x} to an integer or character vector, and hash it to obtain an integer to use as the seed. 
-This process yields a deterministic seed for reproducible results, which is also variable with different \code{x}.
+The choice of seed is based on \code{x}, somehow derived from the dataset of interest. 
+Specifically, we take the integer/character vectors in \code{x} and hash them to obtain an integer to use as the seed.
+This ensures that results for any given dataset are reproducible while avoiding the use of a constant seed for all datasets.
 
-Secondly, the original seed in \code{\link{.Random.seed}} is restored upon calling \code{\link{unsetBiocSeed}}.
+The original seed in \code{\link{.Random.seed}} is restored upon calling \code{\link{unsetBiocSeed}}.
 This ensures that we do not clobber the seed in the user's session by consistently resetting it to the same value.
+The typical pattern is to call \code{unsetBiocSeed} in \code{\link{on.exit}} with the return value of \code{setBiocSeed}.
 
-Thirdly, repeated invocations of \code{setBiocSeed} have no effect beyond the first.
-If we have a function that calls other functions that call \code{setBiocSeed}, it can be a good idea to call \code{setBiocSeed} explicitly at the start of the outer function.
-This means that the PRNG has an opportunity to progress further through the random number stream.
-
-Fourthly, the user can explicitly pass in a non-\code{NULL} value for \code{seed}, which is used directly rather than deriving the seed from \code{x}.
+Alternatively, the user can explicitly pass in a non-\code{NULL} value for \code{seed}, which is used directly rather than deriving the seed from \code{x}.
 This may be useful if the seed derived from \code{x} is not appropriate and/or the user wants to test out the effects of different seeds.
 Note that this, again, has no effect in nested calls beyond the first.
 
 Finally, the entire system can be turned on or with \code{disableBiocSeed} and \code{enableBiocSeed}.
 This is useful for backcompatibility where users can control the process via the global \code{\link{set.seed}}.
 }
-\section{Dealing with floating-point}{
-
-When \code{x} is double-precision, some care is required as different machines may not perform computations with the same precision.
-While \code{x} might be \emph{theoretically} identical across machines, it may differ in practice in some of the less significant bits. 
-These differences would result in \code{setBiocSeed} generating a machine-dependent seed, which is not desirable.
-
-To overcome this, we round all doubles to the first \code{digits} significant figures, 
-thus ignoring any machine-dependent differences in the least significant bits.
-We then convert each double into two integers (for the base-10 exponent and the significand) in preparation for hashing.
-Due to the constraints on the integer width, \code{digits} should be a value between 1 and 8 inclusive.
-
-For complex numbers, the same treatment is applied to the real and imaginary parts separately.
-}
-
 \examples{
 info <- setBiocSeed(letters)
 runif(5)

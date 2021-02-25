@@ -36,32 +36,36 @@ SEXP check_conversion(SEXP incoming) {
 
 /* Modified from http://www.cse.yorku.ca/~oz/hash.html */ 
 
-SEXP djb2_char(SEXP incoming) {
-    const size_t len = length(incoming);
-
-    U hash = 5381;
-    for (size_t i = 0; i < len; ++i) {
-        SEXP current = STRING_ELT(incoming, i);
-        const char* ptr = CHAR(current);
-        while (*ptr != '\0') {
-            hash = ((hash << 5) + hash) + *ptr; 
-            ++ptr;
-        }
-    }
-
-    return ScalarInteger(convert_to_int(hash));
-}
-
-SEXP djb2_int(SEXP incoming) {
-    const int * ptr = INTEGER(incoming);
+SEXP djb2_list(SEXP incoming) {
     const size_t len = length(incoming);
     constexpr int width = std::numeric_limits<U>::digits;
 
     U hash = 5381;
     for (size_t i = 0; i < len; ++i) {
-        U current = ptr[i];
-        for (int j = 0; j < width; j+=8, current >>= 8) {
-            hash = ((hash << 5) + hash) + (current & 0xFF);
+        SEXP current = VECTOR_ELT(incoming, i);
+
+        if (TYPEOF(current) == STRSXP) {
+            const size_t vlen = length(current);
+            for (size_t j = 0; j < vlen; ++j) {
+                const char* ptr = CHAR(STRING_ELT(current, j));
+                while (*ptr != '\0') {
+                    hash = ((hash << 5) + hash) + *ptr; 
+                    ++ptr;
+                }
+            }
+        } else if (TYPEOF(current) == INTSXP) {
+            const int * ptr = INTEGER(current);
+            const size_t vlen = length(current);
+
+            // Reading our integer in 8-byte blocks.
+            for (size_t j = 0; j < vlen; ++j) {
+                U current = ptr[j];
+                for (int j = 0; j < width; j+=8, current >>= 8) {
+                    hash = ((hash << 5) + hash) + (current & 0xFF);
+                }
+            }
+        } else {
+            return ScalarInteger(NA_INTEGER);
         }
     }
 
@@ -71,8 +75,7 @@ SEXP djb2_int(SEXP incoming) {
 extern "C" {
 
 static const R_CallMethodDef callMethods[]  = {
-    {"djb2_int", (DL_FUNC) &djb2_int, 1},
-    {"djb2_char", (DL_FUNC) &djb2_char, 1},
+    {"djb2_list", (DL_FUNC) &djb2_list, 1},
     {"check_conversion", (DL_FUNC) &check_conversion, 1},
     {NULL, NULL, 0}
 };
