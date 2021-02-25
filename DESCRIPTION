@@ -1,15 +1,15 @@
 Package: BiocSeed
-Version: 0.99.0
-Date: 2020-11-13
+Version: 0.99.1
+Date: 2021-02-25
 Title: Setting the Random Seed in Bioconductor Packages
 License: MIT 
 Description: 
-    Implements an intelligent seed-setting mechanism for use with algorithms
-    that are practically stochastic but theoretically deterministic. The aim
-    is to ensure that functions can return deterministic output without the
-    user having to remember to set the seed explicitly; yet avoid using a 
-    constant seed that might lock a function into a bad initialization; and
-    to also avoid interfering with any set.seed() calls that are provided.
+    Implements a data-dependent seed-setting mechanism for use within functions
+    containing a stochastic component. The aim is to ensure that such functions
+    can return deterministic output without the user having to remember to set
+    the seed explicitly; yet avoid using a constant seed that might lock a
+    function into a bad initialization; and to also avoid interfering with any
+    set.seed() calls that are provided.
 Authors@R:
     person("Aaron", "Lun", role=c("aut", "cre"), email="infinite.monkeys.with.keyboards@gmail.com")
 Suggests:
