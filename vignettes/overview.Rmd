@@ -5,8 +5,7 @@ author:
   email: infinite.monkeys.with.keyboards@gmail.com
 package: BiocSeed
 output:
-  BiocStyle::html_document:
-    toc_float: yes
+  BiocStyle::html_document
 vignette: >
   %\VignetteIndexEntry{BioC'ing the seed}
   %\VignetteEngine{knitr::rmarkdown}
@@ -20,18 +19,26 @@ library(BiocStyle)
 
 # Overview
 
-In some situations, an algorithm is theoretically deterministic but the implementation has a stochastic component, e.g., for initialization.
-It would be helpful if we could abstract away the stochastic component so that users do not have to manually call `set.seed()` to obtain reproducible results.
-To this end, `r Biocpkg("BiocSeed")` provides the `setBiocSeed()` function to set the seed to a "deterministically variable" value within Bioconductor packages.
+When using functions that have a stochastic component, it is standard practice to manually call `set.seed()` to obtain reproducible results.
+However, this is easy to forget during interactive analyses and is inconvenient when writing scripts.
+For example, if the seed is not set prior to every function call involving randomization,
+the reproducibility of any non-trivial workflow becomes highly fragile as changes to the PRNG stream will affect all subsequent steps.
 
+The general solution is for developers to set the seed on behalf of the user within each function that implements random procedures.
+This provides robust reproducibility without requiring the user to possess deep knowledge of each function's implementation, but leaves us with the question of "which seed?"
+Using a constant seed for all function calls exposes us to potential biases as the same stream of pseudo-random numbers would be used everywhere;
+this may compromise the long-run correctness of particular statistical methods.
+For example, if a particular seed resulted in a stretch of non-extreme test statistics for Monte Carlo hypothesis tests, we would become consistently anticonservative for all datasets.
+
+To this end, `r Biocpkg("BiocSeed")` provides the `setBiocSeed()` function to set the seed to a "deterministically variable" value within Bioconductor packages.
 The central idea is that the seed is itself a function of the data.
 This ensures that the same call on the same data will reproducibly yield the same result, while different calls will use different seeds.
-In this manner, we avoid using the same seed in all situations, which could lead to problems due to, e.g., statistical biases or poor initializations.
+In this manner, we avoid the statistical problems associated with using the same seed in all situations.
 
 # Basic usage
 
-`r Biocpkg("BiocSeed")` is intended for package developers who are writing functions with some stochastic component.
-It can be used by passing some relevant slice of the function's data to `setBiocSeed()` as shown below.
+Given an integer or character vector or a list thereof, `setBiocSeed()` will compute a 32-bit hash and call `set.seed()` on the resulting value.
+A typical function definition might look like this:
 
 ```{r}
 library(BiocSeed)
@@ -58,6 +65,85 @@ my_somewhat_random_task(LETTERS)
 my_somewhat_random_task(LETTERS)
 ```
 
+# Generating the seed
+
+We limit `setBiocSeed()`'s inputs to integer and character values, so as to avoid variation in the seed across machines due to differences in numerical precision.
+Directly supplying numeric inputs will raise an error:
+
+```{r}
+try(setBiocSeed(0.01))
+```
+
+Instead, developers should supply other attributes of numeric inputs, most typically the length or dimensions.
+This should provide a decent amount of variation in genomics applications with differences in the number of samples/features across studies. 
+
+```{r}
+my_somewhat_random_task2 <- function(x) {
+    # Assuming 'x' is a matrix.
+    info <- setBiocSeed(dim(x))
+    on.exit(unsetBiocSeed(info))
+
+    # Do somewhat random things here.
+    sample(x)
+}
+
+# Different results:
+my_somewhat_random_task2(rbind(1:10))
+my_somewhat_random_task2(matrix(1:10, 5, 2))
+```
+
+Even better is to include a unique identifier in the `setBiocSeed()` call within each function.
+This ensures that different functions will use different seeds, even if they receive the same length/dimensions of their inputs.
+Some readers may recognize the similarity with the concept of "salting" from crytography.
+
+```{r}
+my_somewhat_random_task3a <- function(x) {
+    # Assuming 'x' is a matrix.
+    info <- setBiocSeed(list("this is 3a", dim(x)))
+    on.exit(unsetBiocSeed(info))
+
+    # Do somewhat random things here.
+    sample(x)
+}
+
+my_somewhat_random_task3b <- function(x) {
+    # Assuming 'x' is a matrix.
+    info <- setBiocSeed(list("this is 3b", dim(x)))
+    on.exit(unsetBiocSeed(info))
+
+    # Do somewhat random things here.
+    sample(x)
+}
+
+# Reproducible within functions but different across functions.
+my_somewhat_random_task3a(rbind(1:5))
+my_somewhat_random_task3a(rbind(1:5))
+my_somewhat_random_task3b(rbind(1:5))
+my_somewhat_random_task3b(rbind(1:5))
+```
+
+It is also possible to include other (integer or character) arguments in the list supplied to `setBiocSeed()`, which adds further diversity to the choice of seed.
+However, this should be done carefully to avoid surprising changes to the results.
+To illustrate, the `bad_example` function below provides an `n=` argument to take the `head()` of the sampled values within the function.
+A user might reasonably expect that they could get the same results by calling `bad_example()` and take the `head()` outside the function, 
+but this would not be the case if `n` were included in the `setBiocSeed()` inputs.
+
+```{r}
+bad_example <- function(x, n=length(x)) {
+    # Assuming 'x' is a matrix.
+    info <- setBiocSeed(list("this is good", length(x), n))
+    on.exit(unsetBiocSeed(info))
+
+    head(sample(x), n=n)
+}
+
+bad_example(1:10, n=5L)
+head(bad_example(1:10), 5)
+```
+
+As a general rule, developers should only include other arguments in `setBiocSeed()` if those arguments change the results by altering the PRNG state.
+In such cases, there is no reason for the user to expect that they could recover the same results outside the function if they used different values for those arguments.
+
 # Respecting the global seed
 
 `unsetBiocSeed()` will restore the global seed to its previous state when the function exits.
@@ -73,14 +159,15 @@ out <- my_somewhat_random_task(letters)
 runif(1) # same result as before
 ```
 
-This is also helpful in applications involving simulations, e.g., Monte Carlo sampling.
+This is also helpful in applications involving iterative simulations where each iteration calls our `r Biocpkg("BiocSeed")`-containing function.
 Failing to restore the global seed would cause all iterations to be identical if the seed is always reset to some constant value.
 
 ```{r}
 set.seed(1000)
 
-collected <- numeric(10)
-for (i in seq_along(collected)) {
+niters <- 10
+collected <- numeric(niters)
+for (i in seq_len(niters)) {
     out <- my_somewhat_random_task(letters)
     collected[i] <- runif(1)
 }
@@ -89,32 +176,6 @@ collected # all values are different
 ```
 
 We suggest wrapping `unsetBiocSeed()` in an `on.exit()` statement to ensure that the global seed is restored upon both function return or error.
-
-# Nested calls 
-
-Developers are free to nest these calls, provided that `unsetBiocSeed()` is always called at each level.
-
-```{r}
-OUTER <- function(x) {
-    info <- setBiocSeed(head(x))
-    on.exit(unsetBiocSeed(info))
-
-    INNER(x)
-}
-
-INNER <- function(x) {
-    info <- setBiocSeed(head(x))
-    on.exit(unsetBiocSeed(info))
-    sample(x)
-}
-
-OUTER(1:10)
-```
-
-Note that the `setBiocSeed()` invocation in `INNER()` has no effect once the same call is made in `OUTER()`.
-In a nested stack of `setBiocSeed()` calls, the seed is only set once on the first call.
-This is intentional and allows the PRNG to progress further through the random number stream,
-avoiding any biases from being limited to the sequence around the $2^{32}-1$ seed locations.
 
 # Turning it all off
 
@@ -147,6 +208,8 @@ FUN <- function(x, seed=NULL) {
 }
 
 FUN(1:10)
+FUN(1:10)
+FUN(1:10, seed=100)
 ```
 
 # Session information {-}
